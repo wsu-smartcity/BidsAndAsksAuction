@@ -14,14 +14,14 @@ contract BidsAndAsks{
       return a;
     }
     function insertionSortDescending(uint[] a, uint length) internal returns (uint[]) {
-      for (uint i = 0; i < length; i++) {
-        uint j = i+1;
+      for (uint i = 1; i < length; i++) {
         uint temp = a[i];
-        while (j > 0 && a[j] > a[j-1]) {
-          a[j] = a[j-1];
+        uint j = i-1;
+        while (j >= 0 && a[j] > temp) {
+          a[j+1] = a[j];
           j--;
-          a[j-1] = temp;
         }
+        a[j+1] = temp;
       }
       return a;
     }
@@ -35,8 +35,25 @@ contract BidsAndAsks{
     }
     
    mapping(uint => Bidstructure) bid; 
+   mapping(uint => Askstructure) ask; 
+   
+    modifier bidInMarket(uint _bidId,uint _price) {
+        Askstructure records_asks = ask[_bidId];
+        if (records_asks.owner.length > 0) {
+            if (_price < records_asks.price[records_asks.price.length-1]) throw;
+        }
+        _;
+    }
     
-    function addBid(uint _bidId,address _owner,uint _price, uint _amount){
+    modifier askInMarket(uint _askId,uint _price) {
+        Bidstructure records_bids = bid[_askId];
+        if (records_bids.owner.length > 0) {
+            if (_price > records_bids.price[records_bids.price.length-1]) throw;
+        }
+        _;
+    }
+    
+    function addBid(uint _bidId,address _owner,uint _price, uint _amount)bidInMarket(_bidId,_price) external returns(bool){
         Bidstructure record = bid[_bidId];
         record.bidId=_bidId;
         record.owner.length++;
@@ -46,7 +63,8 @@ contract BidsAndAsks{
         record.amount.length++;
         record.amount[record.amount.length-1]=_amount;
         record.price= insertionSortAscending(record.price,record.price.length);
-        record.amount= insertionSortAscending(record.price,record.amount.length);
+        record.amount= insertionSortAscending(record.amount,record.amount.length);
+        return true;
         
     }
     
@@ -62,9 +80,8 @@ contract BidsAndAsks{
         uint[] amount;
     }
     
-    mapping(uint => Askstructure) ask; 
     
-    function addAsk(uint _askId,address _owner,uint _price, uint _amount){
+    function addAsk(uint _askId,address _owner,uint _price, uint _amount)askInMarket(_askId,_price) external returns(bool){
         Askstructure record = ask[_askId];
         record.askId=_askId;
         record.owner.length++;
@@ -74,10 +91,15 @@ contract BidsAndAsks{
         record.amount.length++;
         record.amount[record.amount.length-1]=_amount;
         record.price= insertionSortDescending(record.price,record.price.length);
-        record.price= insertionSortDescending(record.price,record.price.length);
+        record.amount= insertionSortDescending(record.amount,record.amount.length);
+        return true;
     }
     
     function getAsks(uint _askId)public constant returns (uint,address[],uint[],uint[]){
         return (ask[_askId].askId,ask[_askId].owner,ask[_askId].price,ask[_askId].amount);
+    }
+    
+    function matchBid(uint _bidId,uint _askId) returns (bool){
+        
     }
 }
