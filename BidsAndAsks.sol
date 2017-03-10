@@ -1,105 +1,133 @@
+contract ExchangeTX {
+    struct Bid {
+        address owner;
+        uint price;
+        uint amount;
+        uint date;
+    }
+    struct Ask {
+        address owner;
+        uint price;
+        uint amount;
+        uint date;
+    }
 
-contract BidsAndAsks{
+    Bid[] public BidLedger;
+    Ask[] public AskLedger;
 
-    function insertionSortAscending(uint[] a, uint length) internal returns (uint[]) {
-      for (uint i = 0; i < length; i++) {
-        uint j = i;
-        while (j > 0 && a[j] < a[j-1]) {
-          uint temp = a[j];
-          a[j] = a[j-1];
-          a[j-1] = temp;
-          j--;
-        }
-      }
-      return a;
-    }
-    function insertionSortDescending(uint[] a, uint length) internal returns (uint[]) {
-      for (uint i = 1; i < length; i++) {
-        uint temp = a[i];
-        uint j = i-1;
-        while (j >= 0 && a[j] > temp) {
-          a[j+1] = a[j];
-          j--;
-        }
-        a[j+1] = temp;
-      }
-      return a;
-    }
-    
-    /* This is the bidding section*/
-    struct Bidstructure{
-        uint bidId;
-        address[] owner;
-        uint[] price;
-        uint[] amount;
-    }
-    
-   mapping(uint => Bidstructure) bid; 
-   mapping(uint => Askstructure) ask; 
-   
-    modifier bidInMarket(uint _bidId,uint _price) {
-        Askstructure records_asks = ask[_bidId];
-        if (records_asks.owner.length > 0) {
-            if (_price < records_asks.price[records_asks.price.length-1]) throw;
+    modifier bidInMarket(uint _price) { // Modifier
+        if (AskLedger.length > 0) {
+            if (_price < AskLedger[AskLedger.length-1].price ) throw;
         }
         _;
     }
-    
-    modifier askInMarket(uint _askId,uint _price) {
-        Bidstructure records_bids = bid[_askId];
-        if (records_bids.owner.length > 0) {
-            if (_price > records_bids.price[records_bids.price.length-1]) throw;
+
+    modifier askInMarket(uint _price) {
+        if (BidLedger.length > 0) {
+            if (_price > BidLedger[BidLedger.length-1].price) throw;
         }
         _;
     }
-    
-    function addBid(uint _bidId,address _owner,uint _price, uint _amount)bidInMarket(_bidId,_price) external returns(bool){
-        Bidstructure record = bid[_bidId];
-        record.bidId=_bidId;
-        record.owner.length++;
-        record.owner[record.owner.length-1]=_owner;
-        record.price.length++;
-        record.price[record.price.length-1]=_price;
-        record.amount.length++;
-        record.amount[record.amount.length-1]=_amount;
-        record.price= insertionSortAscending(record.price,record.price.length);
-        record.amount= insertionSortAscending(record.amount,record.amount.length);
-        return true;
-        
-    }
-    
-    function getBids(uint _bidId)public constant returns (uint,address[],uint[],uint[]){
-        return (bid[_bidId].bidId,bid[_bidId].owner,bid[_bidId].price,bid[_bidId].amount);
-    }
-    
-    /* This is the asking section*/
-    struct Askstructure{
-        uint askId;
-        address[] owner;
-        uint[] price;
-        uint[] amount;
-    }
-    
-    
-    function addAsk(uint _askId,address _owner,uint _price, uint _amount)askInMarket(_askId,_price) external returns(bool){
-        Askstructure record = ask[_askId];
-        record.askId=_askId;
-        record.owner.length++;
-        record.owner[record.owner.length-1]=_owner;
-        record.price.length++;
-        record.price[record.price.length-1]=_price;
-        record.amount.length++;
-        record.amount[record.amount.length-1]=_amount;
-        record.price= insertionSortDescending(record.price,record.price.length);
-        record.amount= insertionSortDescending(record.amount,record.amount.length);
+
+    function submitBid(uint _price, uint _amount) bidInMarket(_price) returns (bool) {
+        Bid memory b;
+        b.price = _price;
+        b.amount = _amount;
+        for(uint i = 0; i < BidLedger.length; i++) {
+            if (BidLedger[i].price > _price) {
+                Bid[] memory tempLedger = new Bid[](BidLedger.length - i);
+                for(uint j = 0; j < tempLedger.length; j++) {
+                    tempLedger[j] = BidLedger[j+i];
+                }
+                BidLedger[i] = b;
+                BidLedger.length ++;
+                for(uint k = 0; k < tempLedger.length; k++) {
+                    BidLedger[k+i+1] = tempLedger[k];
+                }
+                return true;
+            }
+        }
+        BidLedger.push(b);
         return true;
     }
-    
-    function getAsks(uint _askId)public constant returns (uint,address[],uint[],uint[]){
-        return (ask[_askId].askId,ask[_askId].owner,ask[_askId].price,ask[_askId].amount);
+    function getbid(uint bid_index) external returns(uint,uint){
+        return (AskLedger[bid_index].price,AskLedger[bid_index].amount);
     }
-    
-    function matchBid(uint _bidId,uint _askId) returns (bool){
-        
+
+    function submitAsk(uint _price, uint _amount) askInMarket(_price) returns (bool) {
+        Ask memory a;
+        a.price = _price;
+        a.amount = _amount;
+        for(uint i = 0; i < AskLedger.length; i++) {
+            if(AskLedger[i].price < _price) {
+                Ask[] memory tempLedger = new Ask[](AskLedger.length - i);
+                for(uint j = 0; j < tempLedger.length; j++) {
+                    tempLedger[j] = AskLedger[j+i];
+                }
+                AskLedger[i] = a;
+                AskLedger.length += 1;
+                for(uint k = 0; k < tempLedger.length; k++) {
+                    AskLedger[k+i+1] = tempLedger[k];
+                }
+                return true;
+            }
+        }
+        AskLedger.push(a);
+        return true;
     }
+    function getask(uint ask_index) external returns(uint,uint){
+        return (AskLedger[ask_index].price,AskLedger[ask_index].amount);
+    }
+    function matchBid(uint bid_index, uint ask_index) returns (bool) {
+        if(BidLedger[bid_index].amount <= 0 || BidLedger[bid_index].price < AskLedger[ask_index].price) {
+            return true;
+        }
+        BidLedger[bid_index].amount--;
+        AskLedger[ask_index].amount--;
+        if(AskLedger[ask_index].amount <= 0 ) {
+            if(ask_index <= 0) {
+                return true;
+            }
+            ask_index--;
+            return matchBid(bid_index, ask_index);
+        }
+        return matchBid(bid_index, ask_index);
+    }
+
+    function matchAsk(uint ask_index, uint bid_index) returns (bool) {
+        if(AskLedger[ask_index].amount <= 0 || AskLedger[ask_index].price > BidLedger[bid_index].price) {
+            return true;
+        }
+        AskLedger[ask_index].amount--;
+        BidLedger[bid_index].amount--;
+        if(BidLedger[bid_index].amount <= 0) {
+            if (bid_index <= 0) {
+                return true;
+            }
+            bid_index--;
+            return(matchAsk(ask_index, bid_index));
+        }
+        return(matchAsk(ask_index, bid_index));
+    }
+
+    function cleanAskLedger() returns (bool) {
+        for(uint i = AskLedger.length - 1; i >= 0; i--) {
+            if(AskLedger[i].amount > 0) {
+                AskLedger.length = i + 1;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function cleanBidLedger() returns (bool) {
+        for(uint i = BidLedger.length - 1; i >= 0; i--) {
+            if(BidLedger[i].amount <= 0) {
+                BidLedger.length = i + 1;
+                return true;
+            }
+        }
+        return false;
+    }
+
 }
